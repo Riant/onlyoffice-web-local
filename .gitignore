@@ -31,3 +31,15 @@ coverage
 html
 test-results/
 playwright-report/
+
+# TypeScript compiled output (Vite handles this in dev)
+src/**/*.js
+src/**/*.js.map
+e2e/**/*.js
+e2e/**/*.js.map
+*.vue.js
+*.vue.js.map
+vite.config.js
+vite.config.js.map
+playwright.config.js
+playwright.config.js.map

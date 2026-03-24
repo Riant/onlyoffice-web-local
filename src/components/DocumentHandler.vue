@@ -1,13 +1,16 @@
-<template>
-    <div class="editor-container" v-loaing="loading" element-loading-text="Loading...">
-        <div id="iframe"></div>
-    </div>
+<template lang="pug">
+.document-handler
+  loading-progress(v-if="loadingVisible", :visible="loadingVisible", :text="loadingText", :progress="loadingProgress", :show-progress="showProgressBar")
+  .editor-container(v-loading="loading", element-loading-text="Loading...")
+    #iframe
 </template>
 
 <script lang="ts" setup>
 import { onMounted, onBeforeUnmount, ref, watchEffect, watch } from 'vue'
-import { getDocumentType, DocmentType } from '@/utils/util'
+import { getDocumentType } from '@/utils/util'
+import type { DocmentType } from '@/utils/util'
 import { g_sEmpty_bin } from '@/utils/empty_bin'
+import LoadingProgress from './LoadingProgress.vue'
 // @ts-ignore
 import {
     initX2TScript,
@@ -15,6 +18,7 @@ import {
     convertDocument,
     convertBinToDocumentAndDownload,
     c_oAscFileType2,
+    setProgressCallback,
 } from '@/utils/x2t'
 const X2T = ref(null)
 // 设置prop
@@ -25,18 +29,40 @@ const props = defineProps<{
 const editor = ref<any>(null)
 const loading = ref(false)
 
+// 进度条相关状态
+const loadingVisible = ref(false)
+const loadingText = ref('加载中...')
+const loadingProgress = ref(0)
+const showProgressBar = ref(false)
+
 // 全局 media 映射对象
 const media: { [key: string]: string } = {}
 
+// 进度回调函数
+const handleProgress = (stage: string, progress: number) => {
+    loadingText.value = stage
+    loadingProgress.value = progress
+    showProgressBar.value = true
+}
+
 onMounted(async () => {
-    loading.value = true
+    loadingVisible.value = true
+    loadingText.value = '正在初始化'
+    loadingProgress.value = 0
+    showProgressBar.value = false
+    
+    // 设置进度回调
+    setProgressCallback(handleProgress)
+    
     try {
         await initX2TScript()
         // 加载编辑器API
+        loadingText.value = '正在加载编辑器'
+        loadingProgress.value = 10
         await loadEditorApi()
         await initX2T()
         console.log('app has loading')
-        loading.value = false
+        loadingVisible.value = false
         // 页面初始化后，使用 watchEffect 监听 props.file 并执行 openFile
         // 添加props.file监听
 
@@ -44,9 +70,14 @@ onMounted(async () => {
             () => props.file.fileName,
             async () => {
                 try {
+                    loadingVisible.value = true
+                    showProgressBar.value = !!props.file.file // 只有打开文件时才显示进度条
+                    loadingProgress.value = 0
+                    loadingText.value = props.file.file ? '正在渲染文档' : '正在创建新文档'
                     await openFile()
                 } catch (error) {
                     console.error('Error opening file:', error)
+                    loadingVisible.value = false
                     alert('文件打开失败，请检查文件格式')
                 }
             },
@@ -57,6 +88,7 @@ onMounted(async () => {
         onBeforeUnmount(stopWatch)
     } catch (error) {
         console.error('Failed to initialize editor:', error)
+        loadingVisible.value = false
         // 错误已在各函数中处理
     }
 })
@@ -161,6 +193,8 @@ function createEditorInstance(config: {
             },
             onDocumentReady: () => {
                 console.log('文档加载完成:', fileName)
+                // 文档渲染完成后隐藏进度条
+                loadingVisible.value = false
             },
             onSave: handleSaveDocument,
             // writeFile
@@ -365,6 +399,9 @@ function getMimeTypeFromExtension(extension: string): string {
 
 // 组件卸载时清理对象 URL
 onBeforeUnmount(() => {
+    // 清理进度回调
+    setProgressCallback(null)
+    
     // 清理媒体资源的对象 URL
     Object.values(media).forEach((url) => {
         if (typeof url === 'string' && url.startsWith('blob:')) {
@@ -381,15 +418,20 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+.document-handler {
+  width: 100%;
+  height: 100%;
+}
+
 .editor-container {
-    width: 100%;
-    height: 100vh;
+  width: 100%;
+  height: 100%;
 }
 
 #iframe {
-    width: 100%;
-    height: 100%;
+  width: 100%;
+  height: 100%;
 }
 </style>
 
