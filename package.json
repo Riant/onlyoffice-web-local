@@ -4,17 +4,17 @@
     "private": true,
     "type": "module",
     "keywords": [
-    "onlyoffice",
-     "vue3",
-    "element-plus",
-    "wasm",
-    "wasm-pack",
-    "typescript",
-    "pinia",
-    "vite",
-    "esm"
-  ],
-  "homepage": "https://sweetwisdom.github.io/onlyoffice-web-local/",
+        "onlyoffice",
+        "vue3",
+        "element-plus",
+        "wasm",
+        "wasm-pack",
+        "typescript",
+        "pinia",
+        "vite",
+        "esm"
+    ],
+    "homepage": "https://sweetwisdom.github.io/onlyoffice-web-local/",
     "scripts": {
         "dev": "vite",
         "build": "vite build",
@@ -42,6 +42,7 @@
         "less": "^4.3.0",
         "npm-run-all2": "^7.0.2",
         "prettier": "3.5.3",
+        "sass-embedded": "^1.98.0",
         "typescript": "~5.8.0",
         "unplugin-auto-import": "^19.3.0",
         "unplugin-vue-components": "^28.5.0",
@@ -55,4 +56,3 @@
         "pnpm": ">=9"
     }
 }
-

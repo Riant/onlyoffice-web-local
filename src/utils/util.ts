@@ -32,7 +32,7 @@ export function injectFavicon(path: string): void {
   }
 }
 export type DocmentType = {
-  fileName: string;
-  file: File | null;
-};
+  fileName: string
+  file: File | null
+}
 
