@@ -10,6 +10,8 @@ interface EmscriptenModule {
     FS: EmscriptenFileSystem
     ccall: (funcName: string, returnType: string, argTypes: string[], args: any[]) => number
     onRuntimeInitialized: () => void
+    calledRun?: boolean
+    run?: () => void
 }
 
 interface ConversionResult {
@@ -153,12 +155,31 @@ class X2TConverter {
                 // 设置超时处理
                 const timeoutId = setTimeout(() => {
                     if (!this.isReady) {
-                        reject(new Error(`X2T initialization timeout after ${this.INIT_TIMEOUT}ms`))
+                        const errorMsg = `X2T initialization timeout after ${this.INIT_TIMEOUT}ms`
+                        console.error(errorMsg)
+                        // 重置状态以允许重试
+                        this.initPromise = null
+                        reject(new Error(errorMsg))
                     }
                 }, this.INIT_TIMEOUT)
 
                 this.emitProgress('正在准备运行环境', 30)
 
+                // 检查是否已经初始化完成（解决竞态条件）
+                // Module.calledRun 为 true 表示运行时已初始化
+                if (x2t.calledRun) {
+                    console.log('X2T runtime already initialized, proceeding directly')
+                    clearTimeout(timeoutId)
+                    this.createWorkingDirectories(x2t)
+                    this.x2tModule = x2t
+                    this.isReady = true
+                    this.emitProgress('转换引擎就绪', 40)
+                    resolve(x2t)
+                    return
+                }
+
+                // 设置回调并手动触发 run()
+                // 因为 Module.noInitialRun = true，需要手动调用 run()
                 x2t.onRuntimeInitialized = () => {
                     try {
                         clearTimeout(timeoutId)
@@ -169,7 +190,21 @@ class X2TConverter {
                         this.emitProgress('转换引擎就绪', 40)
                         resolve(x2t)
                     } catch (error) {
+                        clearTimeout(timeoutId)
+                        this.initPromise = null
                         reject(error)
+                    }
+                }
+
+                // 检查是否有 run 函数并手动调用
+                // @ts-ignore - Emscripten 生成的函数
+                if (typeof x2t.run === 'function') {
+                    console.log('Manually calling run() to start WASM runtime')
+                    try {
+                        // @ts-ignore
+                        x2t.run()
+                    } catch (e) {
+                        console.error('Error calling run():', e)
                     }
                 }
             })
