@@ -11,8 +11,7 @@
     .search-box
       el-input(v-model="searchKeyword" placeholder="搜索字段" clearable size="small")
         template(#prefix)
-          el-icon
-            Search
+          el-icon: Search
     .field-list(v-loading="loading")
       .field-item(
         v-for="field in filteredFields"
@@ -29,7 +28,14 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { Close, Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { addBookmarkToSelection, sanitizeBookmarkName, type BookmarkField } from '@/utils/bookmark'
+import { addBookmarkToSelection, sanitizeBookmarkName, insertTextAtCursor } from '@/utils/bookmark'
+
+interface BookmarkField {
+  id: string | number
+  name: string
+  label: string
+  isPlainText?: boolean
+}
 
 const props = defineProps<{
   visible: boolean
@@ -49,8 +55,8 @@ const fields = ref<BookmarkField[]>([])
 const filteredFields = computed(() => {
   if (!searchKeyword.value) return fields.value
   const keyword = searchKeyword.value.toLowerCase()
-  return fields.value.filter(f => 
-    f.name.toLowerCase().includes(keyword) || 
+  return fields.value.filter(f =>
+    f.name.toLowerCase().includes(keyword) ||
     f.label.toLowerCase().includes(keyword)
   )
 })
@@ -68,9 +74,9 @@ async function fetchFields() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ definitionId: props.definitionId })
     })
-    
+
     if (!response.ok) throw new Error('获取字段列表失败')
-    
+
     const result = await response.json()
     fields.value = (result.data || result || []).map((item: any) => ({
       id: item.id || item.name,
@@ -88,6 +94,7 @@ async function fetchFields() {
 
 function getMockFields(): BookmarkField[] {
   return [
+    { id: 0, name: 'content', label: '正文', isPlainText: true },
     { id: 1, name: 'doc_title', label: '文档标题' },
     { id: 2, name: 'doc_number', label: '文号' },
     { id: 3, name: 'issue_date', label: '发文日期' },
@@ -96,15 +103,24 @@ function getMockFields(): BookmarkField[] {
     { id: 6, name: 'secret_level', label: '密级' },
     { id: 7, name: 'urgency', label: '紧急程度' },
     { id: 8, name: 'subject', label: '主题词' },
-    { id: 9, name: 'content', label: '正文内容' },
-    { id: 10, name: 'sign_date', label: '签发日期' },
+    { id: 9, name: 'sign_date', label: '签发日期' },
   ]
 }
 
 function handleFieldClick(field: BookmarkField) {
+  if (field.isPlainText) {
+    const result = insertTextAtCursor(`{{${field.label}}}`)
+    if (result.success) {
+      ElMessage.success(`已插入: {{${field.label}}}`)
+    } else {
+      ElMessage.warning(result.message)
+    }
+    return
+  }
+
   const sanitizedName = sanitizeBookmarkName(field.name)
   const result = addBookmarkToSelection(sanitizedName)
-  
+
   if (result.success) {
     ElMessage.success(`已添加书签: ${field.label}`)
     emit('bookmarkAdded', sanitizedName)
@@ -119,20 +135,20 @@ function checkSelection() {
     hasSelection.value = false
     return
   }
-  
+
   const iframeWindow = iframe.contentWindow
   const editor = iframeWindow?.Asc?.editor || iframeWindow?.editor
   if (!editor) {
     hasSelection.value = false
     return
   }
-  
+
   const doc = editor.sZ?.()
   if (!doc) {
     hasSelection.value = false
     return
   }
-  
+
   const range = doc.GetRangeBySelect?.()
   hasSelection.value = range !== null && range !== undefined
 }
@@ -189,18 +205,18 @@ onMounted(() => {
   padding: 12px 16px;
   border-bottom: 1px solid #e4e7ed;
   background: #f5f7fa;
-  
+
   .title {
     font-size: 14px;
     font-weight: 500;
     color: #303133;
   }
-  
+
   .close-icon {
     cursor: pointer;
     color: #909399;
     font-size: 16px;
-    
+
     &:hover {
       color: #409eff;
     }
@@ -238,21 +254,21 @@ onMounted(() => {
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: #e6f0fa;
-    
+
     .field-name {
       color: #409eff;
     }
   }
-  
+
   .field-name {
     font-size: 13px;
     color: #606266;
     font-family: monospace;
   }
-  
+
   .field-label {
     font-size: 12px;
     color: #909399;

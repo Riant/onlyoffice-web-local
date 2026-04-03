@@ -1,24 +1,12 @@
-export interface BookmarkField {
-  id: string | number
-  name: string
-  label: string
-}
-
-export interface BookmarkInfo {
-  name: string
-  id: number
-  index: number
-}
-
-export function getEditorInstance(): any {
-  const iframe = document.getElementsByName('frameEditor')[0] as HTMLIFrameElement
+export function getEditorInstance() {
+  const iframe = document.getElementsByName('frameEditor')[0]
   if (!iframe) return null
 
   const iframeWindow = iframe.contentWindow
   return iframeWindow?.Asc?.editor || iframeWindow?.editor || null
 }
 
-export function getBookmarkManager(): any {
+export function getBookmarkManager() {
   const editor = getEditorInstance()
   if (!editor) return null
 
@@ -28,7 +16,7 @@ export function getBookmarkManager(): any {
   return null
 }
 
-export function getSelectedRange(): any {
+export function getSelectedRange() {
   const editor = getEditorInstance()
   if (!editor) return null
 
@@ -38,12 +26,12 @@ export function getSelectedRange(): any {
   return doc.GetRangeBySelect?.() || null
 }
 
-export function hasSelectedText(): boolean {
+export function hasSelectedText() {
   const range = getSelectedRange()
   return range !== null
 }
 
-export function addBookmarkToSelection(fieldName: string): { success: boolean; message: string } {
+export function addBookmarkToSelection(fieldName) {
   const editor = getEditorInstance()
   if (!editor) {
     return { success: false, message: '编辑器未初始化' }
@@ -62,16 +50,16 @@ export function addBookmarkToSelection(fieldName: string): { success: boolean; m
   try {
     range.AddBookmark(fieldName)
     return { success: true, message: `已添加书签: ${fieldName}` }
-  } catch (error: any) {
+  } catch (error) {
     return { success: false, message: error?.message || '添加书签失败' }
   }
 }
 
-export function getAllBookmarks(): BookmarkInfo[] {
+export function getAllBookmarks() {
   const bookmarkManager = getBookmarkManager()
   if (!bookmarkManager) return []
 
-  const bookmarks: BookmarkInfo[] = []
+  const bookmarks = []
   const count = bookmarkManager.asc_GetCount?.() || 0
 
   for (let i = 0; i < count; i++) {
@@ -86,7 +74,7 @@ export function getAllBookmarks(): BookmarkInfo[] {
   return bookmarks
 }
 
-export function goToBookmark(name: string): boolean {
+export function goToBookmark(name) {
   const bookmarkManager = getBookmarkManager()
   if (!bookmarkManager) return false
 
@@ -97,7 +85,7 @@ export function goToBookmark(name: string): boolean {
   return false
 }
 
-export function removeBookmark(name: string): boolean {
+export function removeBookmark(name) {
   const bookmarkManager = getBookmarkManager()
   if (!bookmarkManager) return false
 
@@ -108,10 +96,36 @@ export function removeBookmark(name: string): boolean {
   return false
 }
 
-export function sanitizeBookmarkName(name: string): string {
+export function sanitizeBookmarkName(name) {
   return name
     .replace(/[\/\?<>\\:\*\|"]/g, '_')
     .replace(/[\x00-\x1f\x80-\x9f]/g, '')
     .trim()
     .slice(0, 40)
+}
+
+export function insertTextAtCursor(text) {
+  const iframe = document.getElementsByName('frameEditor')[0]
+  if (!iframe) {
+    return { success: false, message: '编辑器未初始化' }
+  }
+
+  const iframeWindow = iframe.contentWindow
+  const editor = iframeWindow?.Asc?.editor || iframeWindow?.editor
+  if (!editor) {
+    return { success: false, message: '编辑器未初始化' }
+  }
+
+  try {
+    // 使用 asc_AddText API 在光标位置插入文本
+    if (typeof editor.asc_AddText === 'function') {
+      editor.asc_AddText(text)
+      return { success: true, message: '已插入文本' }
+    }
+
+    return { success: false, message: '不支持插入文本操作' }
+  } catch (error) {
+    console.error('插入文本错误:', error)
+    return { success: false, message: error?.message || '插入文本失败' }
+  }
 }
