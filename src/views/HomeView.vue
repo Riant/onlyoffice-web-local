@@ -52,7 +52,7 @@
 <script lang="ts" setup>
 import { FolderOpened } from '@element-plus/icons-vue'
 import { onMounted, ref } from 'vue'
-import { DocmentType } from '@/utils/util'
+import type { DocmentType } from '@/utils/util'
 import DocumentHandler from '../components/DocumentHandler.vue'
 import { useRoute } from 'vue-router'
 import { ElLoading } from 'element-plus'

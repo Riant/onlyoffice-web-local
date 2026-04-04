@@ -10,6 +10,8 @@ interface EmscriptenModule {
     FS: EmscriptenFileSystem
     ccall: (funcName: string, returnType: string, argTypes: string[], args: any[]) => number
     onRuntimeInitialized: () => void
+    calledRun?: boolean
+    run?: () => void
 }
 
 interface ConversionResult {
@@ -23,6 +25,8 @@ interface BinConversionResult {
     fileName: string
     data: Uint8Array
 }
+
+type ProgressCallback = (stage: string, progress: number) => void
 
 type DocumentType = 'word' | 'cell' | 'slide'
 
@@ -165,6 +169,7 @@ class X2TConverter {
 
     private async doInitialize(): Promise<EmscriptenModule> {
         try {
+            this.emitProgress('正在初始化运行环境', 20)
             // 确保脚本已加载
             await this.loadScript()
 
@@ -325,12 +330,14 @@ class X2TConverter {
         const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2)
 
         try {
+            this.emitProgress('正在读取文件', 45)
             // 读取文件内容
             this.emitProgress(LoadStage.READING_FILE, 35, '正在读取文件...', `${fileName} (${fileSizeMB} MB)`)
             const arrayBuffer = await file.arrayBuffer()
             const data = new Uint8Array(arrayBuffer)
             this.emitProgress(LoadStage.READING_FILE, 45, '文件读取完成', `共 ${data.length.toLocaleString()} 字节`)
 
+            this.emitProgress('正在准备转换', 55)
             // 生成安全的文件名
             const sanitizedName = this.sanitizeFileName(fileName)
             const inputPath = `/working/${sanitizedName}`
@@ -344,6 +351,7 @@ class X2TConverter {
             const params = this.createConversionParams(inputPath, outputPath)
             this.x2tModule!.FS.writeFile('/working/params.xml', params)
 
+            this.emitProgress('正在转换文档格式', 70)
             // 执行转换
             this.emitProgress(LoadStage.CONVERTING, 55, '正在转换文档格式...', '这可能需要一些时间')
             const startTime = performance.now()
@@ -351,6 +359,7 @@ class X2TConverter {
             const convertTime = ((performance.now() - startTime) / 1000).toFixed(2)
             this.emitProgress(LoadStage.CONVERTING, 75, `文档转换完成 (${convertTime}s)`, '读取转换结果')
 
+            this.emitProgress('正在读取转换结果', 85)
             // 读取转换结果
             const result = this.x2tModule!.FS.readFile(outputPath)
             const media = this.readMediaFiles()

@@ -22,6 +22,10 @@
 import { onMounted, onBeforeUnmount, ref, watchEffect, watch, reactive } from 'vue'
 import { getDocumentType, DocmentType } from '@/utils/util'
 import { g_sEmpty_bin } from '@/utils/empty_bin'
+import LoadingProgress from './LoadingProgress.vue'
+import BookmarkPanel from './BookmarkPanel.vue'
+import { CollectionTag, Upload } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 // @ts-ignore
 import {
     initX2TScript,
@@ -38,6 +42,9 @@ const X2T = ref(null)
 const props = defineProps<{
     file: DocmentType
 }>()
+
+const route = useRoute()
+const definitionId = ref<string | undefined>(undefined)
 
 const editor = ref<any>(null)
 const loading = ref(false)
@@ -57,6 +64,13 @@ const loadProgress = reactive<{
 
 // 全局 media 映射对象
 const media: { [key: string]: string } = {}
+
+// 进度回调函数
+const handleProgress = (stage: string, progress: number) => {
+    loadingText.value = stage
+    loadingProgress.value = progress
+    showProgressBar.value = true
+}
 
 onMounted(async () => {
     loading.value = true
@@ -81,7 +95,7 @@ onMounted(async () => {
         await loadEditorApi()
         await initX2T()
         console.log('app has loading')
-        loading.value = false
+        loadingVisible.value = false
         // 页面初始化后，使用 watchEffect 监听 props.file 并执行 openFile
         // 添加props.file监听
 
@@ -244,7 +258,9 @@ function createEditorInstance(config: {
             writeFile: handleWriteFile,
         },
     })
+    console.log('editor.value >>> ', editor.value)
 }
+
 
 // 修改后的openFile方法
 async function openFile() {
@@ -342,7 +358,6 @@ function dataURItoBlob(dataURI: string): Blob {
  * @param event - OnlyOffice 编辑器的文件写入事件
  */
 function handleWriteFile(event: any) {
-    debugger
     try {
         console.log('Write file event:', event)
 
@@ -371,15 +386,13 @@ function handleWriteFile(event: any) {
         const fileExtension = fileName.split('.').pop()?.toLowerCase() || 'png'
         const mimeType = getMimeTypeFromExtension(fileExtension)
 
-        // 创建 Blob 对象
-        const blob = new Blob([imageData], { type: mimeType })
+        // 直接从 Uint8Array 生成 base64
+        const base64Url = `data:${mimeType};base64,${uint8ArrayToBase64(imageData)}`
 
-        // 创建对象 URL
-        const objectUrl = URL.createObjectURL(blob)
-        // 将图片设置为base64url
-        //  const base64Url = `data:${mimeType};base64,${btoa(String.fromCharCode(...imageData))}`;
-        // 将图片URL添加到媒体映射中，使用原始文件名作为key
-        media[`media/${fileName}`] = objectUrl
+        // 将图片 URL 添加到媒体映射中
+        // 使用 base64 格式，确保保存时图片能正确嵌入文档
+        media[`media/${fileName}`] = base64Url
+
         editor.value.sendCommand({
             command: 'asc_setImageUrls',
             data: {
@@ -390,8 +403,7 @@ function handleWriteFile(event: any) {
         editor.value.sendCommand({
             command: 'asc_writeFileCallback',
             data: {
-                // 图片base64
-                path: objectUrl,
+                path: base64Url,
                 imgName: fileName,
             },
         })
@@ -442,8 +454,25 @@ function getMimeTypeFromExtension(extension: string): string {
     return mimeMap[extension?.toLowerCase()] || 'image/png'
 }
 
+/**
+ * 将 Uint8Array 转换为 base64 字符串
+ * @param uint8Array - Uint8Array 数据
+ * @returns string - base64 字符串
+ */
+function uint8ArrayToBase64(uint8Array: Uint8Array): string {
+    let binary = ''
+    const len = uint8Array.byteLength
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(uint8Array[i])
+    }
+    return btoa(binary)
+}
+
 // 组件卸载时清理对象 URL
 onBeforeUnmount(() => {
+    // 清理进度回调
+    setProgressCallback(null)
+
     // 清理媒体资源的对象 URL
     Object.values(media).forEach((url) => {
         if (typeof url === 'string' && url.startsWith('blob:')) {
@@ -458,6 +487,21 @@ onBeforeUnmount(() => {
         }
     }
 })
+
+// 触发保存函数
+function triggerSave() {
+    if (editor.value) editor.value.downloadAs('docx')
+}
+
+// 切换书签面板显示
+function toggleBookmarkPanel() {
+    bookmarkPanelVisible.value = !bookmarkPanelVisible.value
+}
+
+// 处理书签添加成功
+function handleBookmarkAdded(fieldName: string) {
+    console.log('书签添加成功:', fieldName)
+}
 </script>
 
 <style lang="scss" scoped>
@@ -542,5 +586,20 @@ onBeforeUnmount(() => {
   font-size: 13px;
   color: #909399;
 }
-</style>
 
+.toolbar-extension { position: absolute; top: 28px; right: 45px; z-index: 100; display: flex; gap: 5px;
+    .btn { display: flex; align-items: center; gap: 4px; padding: 7px 8px 5px 6px;
+      font-size: 12px; color: #FFF; cursor: pointer; transition: all 0.2s;
+      &:hover {
+        background: rgba(255,255,255,.2);
+      }
+      &.active {
+        background: rgba(255,255,255,.3);
+      }
+      .el-icon {
+        font-size: 14px;
+      }
+    }
+}
+
+</style>
