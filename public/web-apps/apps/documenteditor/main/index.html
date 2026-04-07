@@ -169,7 +169,149 @@
 
     <link rel="stylesheet" type="text/css" href="../../../apps/documenteditor/main/resources/css/app.css">
     <script src="../../../../sdkjs/common/AllFonts.js"></script>
+    <script>
+        (function() {
+            console.log('Adding custom font definitions...');
+            // 自定义字体配置
+            var customFontName = '方正小标宋简体';
+            var customFontFile = '342';  // 字体文件名（不带扩展名）
+            // 1. 添加字体文件路径到 __fonts_files
+            var fontFileIndex = window.__fonts_files.length;
+            window.__fonts_files.push(customFontFile);
+            console.log('Added font file:', customFontFile, 'at index:', fontFileIndex);
+            // 2. 添加字体信息到 __fonts_infos
+            // 格式: [名称, 缩略图索引, Regular字体文件索引, Bold字体文件索引, Italic字体文件索引, ...]
+            // 缩略图索引 = __fonts_infos 的当前长度（因为每个字体对应一个缩略图）
+            var thumbnailIndex = window.__fonts_infos.length;
+            var fontInfo = [customFontName, thumbnailIndex, fontFileIndex, -1, -1, -1, -1, -1, -1];
+            window.__fonts_infos.push(fontInfo);
+            console.log('Added font info:', fontInfo, 'thumbnailIndex:', thumbnailIndex);
+            // 3. 添加字体范围到 __fonts_ranges
+            // 格式: [起始码, 结束码, 字体信息索引] * N
+            if (window.__fonts_ranges) {
+                var infosIndex = window.__fonts_infos.length - 1;
+                var rangesToAdd = [
+                    [0x0000, 0x007F, infosIndex],  // ASCII（数字字母）
+                    [0x00A0, 0x00FF, infosIndex],  // Latin-1 Supplement
+                    [0x4E00, 0x9FAF, infosIndex],  // 中文
+                ];                
+                // 按顺序插入每个范围
+                rangesToAdd.forEach(function(newRange) {
+                    var start = newRange[0];
+                    var inserted = false;
+                    
+                    // 找到正确的插入位置
+                    for (var i = 0; i < window.__fonts_ranges.length; i += 3) {
+                        if (window.__fonts_ranges[i] > start) {
+                            // 在位置 i 插入
+                            window.__fonts_ranges.splice(i, 0, newRange[0], newRange[1], newRange[2]);
+                            inserted = true;
+                            break;
+                        }
+                    }
+                    
+                    // 如果没找到更大的起始码，追加到末尾
+                    if (!inserted) {
+                        window.__fonts_ranges.push(newRange[0], newRange[1], newRange[2]);
+                    }
+                });
+                
+                console.log('Font ranges inserted in order', infosIndex);
+            }
+            // 4. 添加字体名称到 __fonts_sort
+            if (window.__fonts_sort) {
+                window.__fonts_sort.push(customFontName);
+                console.log('Added font name to sort list');
+            }
+            var fontName = '方正小标宋简体';
+        })();
+    </script>
     <script src="../../../../sdkjs/word/sdk-all-min.js"></script>
+    <script>
+        // 加载自定义字体文件 - 在 sdk-all.js 加载之后
+        (function() {
+            console.log('Loading custom font file after sdk-all.js...');
+            
+            // 自定义字体配置
+            var customFontName = '方正小标宋简体';
+            var customFontFile = '342';
+            
+            // 等待 AscFonts 初始化完成
+            function waitForAscFonts(callback, maxAttempts) {
+                maxAttempts = maxAttempts || 50;
+                var attempts = 0;
+                
+                function check() {
+                    attempts++;
+                    if (window.AscFonts && window.AscFonts.owe && window.AscFonts.BKa) {
+                        callback();
+                    } else if (attempts < maxAttempts) {
+                        setTimeout(check, 100);
+                    } else {
+                        console.error('AscFonts not initialized after', maxAttempts, 'attempts');
+                    }
+                }
+                check();
+            }
+            
+            waitForAscFonts(function() {
+                console.log('AscFonts initialized');
+
+                
+                var mapIndex = AscFonts?.g_map_font_index?.[fontName];
+                console.log('字体映射索引:', mapIndex, AscFonts.g_map_font_index);
+                
+                // 检查字体信息
+                var fontInfo = AscFonts?.g_font_infos?.[mapIndex];
+                console.log('字体信息:', fontInfo, AscFonts);
+                
+                // 查找字体文件索引
+                // __fonts_files 已被删除，但 owe 数组已创建
+                // 我们需要找到自定义字体在 owe 数组中的索引
+                var fontFileIndex = -1;
+                for (var i = 0; i < window.AscFonts.owe.length; i++) {
+                    if (window.AscFonts.owe[i] && window.AscFonts.owe[i].Za === customFontFile) {
+                        fontFileIndex = i;
+                        break;
+                    }
+                }
+                
+                if (fontFileIndex === -1) {
+                    console.error('Font file not found in owe array:', customFontFile);
+                    return;
+                }
+                
+                console.log('Found font at index:', fontFileIndex);
+                
+                // 检查字体是否已加载
+                var fontFileObj = window.AscFonts.owe[fontFileIndex];
+                if (fontFileObj.HA === 0) {
+                    console.log('Font already loaded');
+                    return;
+                }
+                
+                // 加载字体文件
+                var fontUrl = '../../../../fonts/' + customFontFile;
+                fetch(fontUrl)
+                    .then(function(response) {
+                        if (!response.ok) throw new Error('Failed to fetch font: ' + fontUrl);
+                        return response.arrayBuffer();
+                    })
+                    .then(function(buffer) {
+                        var fontData = new Uint8Array(buffer);
+                        console.log('Font data loaded:', customFontName, 'size:', fontData.length);
+                        
+                        // 调用 z3d 方法加载字体数据
+                        fontFileObj.z3d(fontData);
+                        
+                        console.log('Custom font loaded successfully');
+                    })
+                    .catch(function(error) {
+                        console.error('Failed to load custom font file:', customFontName, error);
+                    });
+            });
+        })();
+    </script>
     <script src="../../../apps/common/main/lib/util/min-log.js"></script>
 </head>
 <body>
