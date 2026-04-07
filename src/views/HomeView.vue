@@ -141,7 +141,7 @@ async function initFileUrl() {
     }
 
     const file = new File([blob], fileName, { type: blob.type })
-    debugger
+    // shallowRef 不会深层代理，直接赋值即可
     docmentObj.value = { fileName, file }
     showCreateDialog.value = false
   } catch (err) {
@@ -250,5 +250,11 @@ onMounted(() => {
   text-align: center;
   padding-bottom: 25px;
   margin-top: 20px;
+  .mode-radio-group {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+  }
 }
 </style>

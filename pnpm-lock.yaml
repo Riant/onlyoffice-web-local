@@ -54,9 +54,12 @@ importers:
       prettier:
         specifier: 3.5.3
         version: 3.5.3
+<<<<<<< HEAD
+=======
       pug:
         specifier: ^3.0.4
         version: 3.0.4
+>>>>>>> 6924c11992a664c70722dc17a43c7f90e7d9e707
       sass-embedded:
         specifier: ^1.98.0
         version: 1.98.0
@@ -962,6 +965,8 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
+<<<<<<< HEAD
+=======
   doctypes@1.1.0:
     resolution: {integrity: sha512-LLBi6pEqS6Do3EKQ3J0NqHWV5hhb78Pi8vvESYwyOy2c31ZEZVdtitdzsQsKb7878PEERhzUk0ftqGhG6Mz+pQ==}
 
@@ -969,6 +974,7 @@ packages:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
     engines: {node: '>= 0.4'}
 
+>>>>>>> 6924c11992a664c70722dc17a43c7f90e7d9e707
   electron-to-chromium@1.5.137:
     resolution: {integrity: sha512-/QSJaU2JyIuTbbABAo/crOs+SuAZLS+fVVS10PVrIT9hrRkmZl8Hb0xPSkKRUUWHQtYzXHpQUW3Dy5hwMzGZkA==}
 
@@ -1400,8 +1406,13 @@ packages:
     resolution: {integrity: sha512-M7BAV6Rlcy5u+m6oPhAPFgJTzAioX/6B0DxyvDlo9l8+T3nLKbrczg2WLUyzd45L8RqfUMyGPzekbMvX2Ldkwg==}
     engines: {node: '>=12'}
 
+<<<<<<< HEAD
+  picomatch@4.0.3:
+    resolution: {integrity: sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q==}
+=======
   picomatch@4.0.4:
     resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
+>>>>>>> 6924c11992a664c70722dc17a43c7f90e7d9e707
     engines: {node: '>=12'}
 
   pidtree@0.6.0:
@@ -1727,10 +1738,13 @@ packages:
     resolution: {integrity: sha512-MpUEN2OodtUzxvKQl72cUF7RQ5EiHsGvSsVG0ia9c5RbWGL2CI4C7EpPS8UTBIplnlzZiNuV56w+FuNxy3ty2Q==}
     engines: {node: '>=10'}
 
+<<<<<<< HEAD
+=======
   supports-preserve-symlinks-flag@1.0.0:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
 
+>>>>>>> 6924c11992a664c70722dc17a43c7f90e7d9e707
   sync-child-process@1.0.2:
     resolution: {integrity: sha512-8lD+t2KrrScJ/7KXCSyfhT3/hRq78rC0wBFqNJXv3mZyn6hW2ypM05JmlSvtqRbeq6jqA94oHbxAr2vYsJ8vDA==}
     engines: {node: '>=16.0.0'}
@@ -2323,7 +2337,11 @@ snapshots:
       detect-libc: 2.1.2
       is-glob: 4.0.3
       node-addon-api: 7.1.1
+<<<<<<< HEAD
+      picomatch: 4.0.3
+=======
       picomatch: 4.0.4
+>>>>>>> 6924c11992a664c70722dc17a43c7f90e7d9e707
     optionalDependencies:
       '@parcel/watcher-android-arm64': 2.5.6
       '@parcel/watcher-darwin-arm64': 2.5.6
@@ -2787,6 +2805,8 @@ snapshots:
   detect-libc@2.1.2:
     optional: true
 
+<<<<<<< HEAD
+=======
   doctypes@1.1.0: {}
 
   dunder-proto@1.0.1:
@@ -2795,6 +2815,7 @@ snapshots:
       es-errors: 1.3.0
       gopd: 1.2.0
 
+>>>>>>> 6924c11992a664c70722dc17a43c7f90e7d9e707
   electron-to-chromium@1.5.137: {}
 
   element-plus@2.9.11(vue@3.5.13(typescript@5.8.3)):
@@ -3210,7 +3231,11 @@ snapshots:
 
   picomatch@4.0.2: {}
 
+<<<<<<< HEAD
+  picomatch@4.0.3:
+=======
   picomatch@4.0.4:
+>>>>>>> 6924c11992a664c70722dc17a43c7f90e7d9e707
     optional: true
 
   pidtree@0.6.0: {}
@@ -3545,8 +3570,11 @@ snapshots:
     dependencies:
       has-flag: 4.0.0
 
+<<<<<<< HEAD
+=======
   supports-preserve-symlinks-flag@1.0.0: {}
 
+>>>>>>> 6924c11992a664c70722dc17a43c7f90e7d9e707
   sync-child-process@1.0.2:
     dependencies:
       sync-message-port: 1.2.0
@@ -3712,8 +3740,11 @@ snapshots:
       less: 4.3.0
       sass: 1.98.0
       sass-embedded: 1.98.0
+<<<<<<< HEAD
+=======
 
   void-elements@3.1.0: {}
+>>>>>>> 6924c11992a664c70722dc17a43c7f90e7d9e707
 
   vscode-uri@3.1.0: {}
 

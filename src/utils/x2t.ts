@@ -29,6 +29,30 @@ interface BinConversionResult {
 type ProgressCallback = (stage: string, progress: number) => void
 
 type DocumentType = 'word' | 'cell' | 'slide'
+
+// 加载阶段枚举
+export enum LoadStage {
+    IDLE = 'idle',
+    LOADING_SCRIPT = 'loading_script',
+    INITIALIZING = 'initializing',
+    READING_FILE = 'reading_file',
+    CONVERTING = 'converting',
+    LOADING_EDITOR = 'loading_editor',
+    RENDERING = 'rendering',
+    COMPLETED = 'completed',
+    ERROR = 'error',
+}
+
+// 进度信息接口
+export interface LoadProgress {
+    stage: LoadStage
+    progress: number // 0-100
+    message: string
+    detail?: string
+}
+
+// 进度回调类型
+export type ProgressCallback = (progress: LoadProgress) => void
 type SupportedExtension =
     | 'docx'
     | 'doc'
@@ -59,6 +83,18 @@ class X2TConverter {
     private hasScriptLoaded = false
     private progressCallback: ProgressCallback | null = null
 
+    // 设置进度回调
+    setProgressCallback(callback: ProgressCallback | null): void {
+        this.progressCallback = callback
+    }
+
+    // 触发进度更新
+    private emitProgress(stage: LoadStage, progress: number, message: string, detail?: string): void {
+        if (this.progressCallback) {
+            this.progressCallback({ stage, progress, message, detail })
+        }
+    }
+
     // 支持的文件类型映射
     private readonly DOCUMENT_TYPE_MAP: Record<string, DocumentType> = {
         docx: 'word',
@@ -84,23 +120,13 @@ class X2TConverter {
     private readonly SCRIPT_PATH = './wasm/x2t/x2t.js'
     private readonly INIT_TIMEOUT = 180000
 
-    setProgressCallback(callback: ProgressCallback | null): void {
-        this.progressCallback = callback
-    }
-
-    private emitProgress(stage: string, progress: number): void {
-        if (this.progressCallback) {
-            this.progressCallback(stage, progress)
-        }
-    }
-
     /**
      * 加载 X2T 脚本文件
      */
     async loadScript(): Promise<void> {
         if (this.hasScriptLoaded) return
 
-        this.emitProgress('正在加载转换引擎', 5)
+        this.emitProgress(LoadStage.LOADING_SCRIPT, 5, '正在加载转换引擎...', '初始化文档转换模块')
 
         return new Promise((resolve, reject) => {
             const script = document.createElement('script')
@@ -108,13 +134,14 @@ class X2TConverter {
             script.onload = () => {
                 this.hasScriptLoaded = true
                 console.log('X2T WASM script loaded successfully')
-                this.emitProgress('正在初始化转换引擎', 15)
+                this.emitProgress(LoadStage.LOADING_SCRIPT, 15, '转换引擎加载完成', '准备初始化')
                 resolve()
             }
 
             script.onerror = (error) => {
                 const errorMsg = 'Failed to load X2T WASM script'
                 console.error(errorMsg, error)
+                this.emitProgress(LoadStage.ERROR, 0, '转换引擎加载失败', errorMsg)
                 reject(new Error(errorMsg))
             }
 
@@ -135,6 +162,7 @@ class X2TConverter {
             return this.initPromise
         }
 
+        this.emitProgress(LoadStage.INITIALIZING, 20, '正在初始化转换引擎...', '准备运行环境')
         this.initPromise = this.doInitialize()
         return this.initPromise
     }
@@ -145,69 +173,28 @@ class X2TConverter {
             // 确保脚本已加载
             await this.loadScript()
 
-            return new Promise((resolve, reject) => {
-                const x2t = window.Module
-                if (!x2t) {
-                    reject(new Error('X2T module not found after script loading'))
-                    return
-                }
+            this.emitProgress(LoadStage.INITIALIZING, 25, '正在初始化运行环境...', '加载 WebAssembly 模块')
 
-                // 设置超时处理
-                const timeoutId = setTimeout(() => {
-                    if (!this.isReady) {
-                        const errorMsg = `X2T initialization timeout after ${this.INIT_TIMEOUT}ms`
-                        console.error(errorMsg)
-                        // 重置状态以允许重试
-                        this.initPromise = null
-                        reject(new Error(errorMsg))
-                    }
-                }, this.INIT_TIMEOUT)
+            // 由于 x2t.js 设置了 noInitialRun = true，onRuntimeInitialized 不会被调用
+            // 但 WASM 模块在脚本加载后就已经初始化好了，直接检查模块是否可用
+            const x2t = window.Module
+            if (!x2t) {
+                this.emitProgress(LoadStage.ERROR, 0, '初始化失败', 'X2T 模块未找到')
+                throw new Error('X2T module not found after script loading')
+            }
 
-                this.emitProgress('正在准备运行环境', 30)
+            // 检查必要的函数是否存在
+            if (typeof x2t.ccall !== 'function' || !x2t.FS) {
+                this.emitProgress(LoadStage.ERROR, 0, '初始化失败', 'X2T 模块未完全加载')
+                throw new Error('X2T module not fully initialized')
+            }
 
-                // 检查是否已经初始化完成（解决竞态条件）
-                // Module.calledRun 为 true 表示运行时已初始化
-                if (x2t.calledRun) {
-                    console.log('X2T runtime already initialized, proceeding directly')
-                    clearTimeout(timeoutId)
-                    this.createWorkingDirectories(x2t)
-                    this.x2tModule = x2t
-                    this.isReady = true
-                    this.emitProgress('转换引擎就绪', 40)
-                    resolve(x2t)
-                    return
-                }
-
-                // 设置回调并手动触发 run()
-                // 因为 Module.noInitialRun = true，需要手动调用 run()
-                x2t.onRuntimeInitialized = () => {
-                    try {
-                        clearTimeout(timeoutId)
-                        this.createWorkingDirectories(x2t)
-                        this.x2tModule = x2t
-                        this.isReady = true
-                        console.log('X2T module initialized successfully')
-                        this.emitProgress('转换引擎就绪', 40)
-                        resolve(x2t)
-                    } catch (error) {
-                        clearTimeout(timeoutId)
-                        this.initPromise = null
-                        reject(error)
-                    }
-                }
-
-                // 检查是否有 run 函数并手动调用
-                // @ts-ignore - Emscripten 生成的函数
-                if (typeof x2t.run === 'function') {
-                    console.log('Manually calling run() to start WASM runtime')
-                    try {
-                        // @ts-ignore
-                        x2t.run()
-                    } catch (e) {
-                        console.error('Error calling run():', e)
-                    }
-                }
-            })
+            this.createWorkingDirectories(x2t)
+            this.x2tModule = x2t
+            this.isReady = true
+            console.log('X2T module initialized successfully')
+            this.emitProgress(LoadStage.INITIALIZING, 30, '转换引擎初始化完成', '准备处理文档')
+            return x2t
         } catch (error) {
             this.initPromise = null // 重置以允许重试
             throw error
@@ -340,12 +327,15 @@ class X2TConverter {
         const fileName = file.name
         const fileExt = fileName.split('.').pop()?.toLowerCase() || ''
         const documentType = this.getDocumentType(fileExt)
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2)
 
         try {
             this.emitProgress('正在读取文件', 45)
             // 读取文件内容
+            this.emitProgress(LoadStage.READING_FILE, 35, '正在读取文件...', `${fileName} (${fileSizeMB} MB)`)
             const arrayBuffer = await file.arrayBuffer()
             const data = new Uint8Array(arrayBuffer)
+            this.emitProgress(LoadStage.READING_FILE, 45, '文件读取完成', `共 ${data.length.toLocaleString()} 字节`)
 
             this.emitProgress('正在准备转换', 55)
             // 生成安全的文件名
@@ -354,6 +344,7 @@ class X2TConverter {
             const outputPath = `${inputPath}.bin`
 
             // 写入文件到虚拟文件系统
+            this.emitProgress(LoadStage.CONVERTING, 50, '正在准备转换...', '写入虚拟文件系统')
             this.x2tModule!.FS.writeFile(inputPath, data)
 
             // 创建转换参数
@@ -362,14 +353,19 @@ class X2TConverter {
 
             this.emitProgress('正在转换文档格式', 70)
             // 执行转换
+            this.emitProgress(LoadStage.CONVERTING, 55, '正在转换文档格式...', '这可能需要一些时间')
+            const startTime = performance.now()
             this.executeConversion('/working/params.xml')
+            const convertTime = ((performance.now() - startTime) / 1000).toFixed(2)
+            this.emitProgress(LoadStage.CONVERTING, 75, `文档转换完成 (${convertTime}s)`, '读取转换结果')
 
             this.emitProgress('正在读取转换结果', 85)
             // 读取转换结果
             const result = this.x2tModule!.FS.readFile(outputPath)
             const media = this.readMediaFiles()
 
-            this.emitProgress('转换完成', 100)
+            this.emitProgress(LoadStage.CONVERTING, 85, '文档处理完成', '准备加载编辑器')
+
             return {
                 fileName: sanitizedName,
                 type: documentType,
@@ -377,6 +373,7 @@ class X2TConverter {
                 media,
             }
         } catch (error) {
+            this.emitProgress(LoadStage.ERROR, 0, '文档转换失败', error instanceof Error ? error.message : '未知错误')
             throw new Error(
                 `Document conversion failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
             )
@@ -585,8 +582,7 @@ export const convertBinToDocumentAndDownload = (
     fileName: string,
     targetExt?: string,
 ) => x2tConverter.convertBinToDocumentAndDownload(bin, fileName, targetExt)
-export const setProgressCallback = (callback: ProgressCallback | null) =>
-    x2tConverter.setProgressCallback(callback)
+export const setProgressCallback = (callback: ProgressCallback | null) => x2tConverter.setProgressCallback(callback)
 
 // 文件类型常量
 export const oAscFileType = {

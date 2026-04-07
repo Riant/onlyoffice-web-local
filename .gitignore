@@ -31,3 +31,9 @@ coverage
 html
 test-results/
 playwright-report/
+weboffice/
+
+# OnlyOffice SDK (unpacked)
+weboffice/
+weboffice.zip
+

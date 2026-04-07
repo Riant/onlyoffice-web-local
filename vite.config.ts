@@ -1,6 +1,6 @@
 import { fileURLToPath, URL } from 'node:url'
 
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import vueDevTools from 'vite-plugin-vue-devtools'
@@ -8,6 +8,19 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import viteCompression from 'vite-plugin-compression'
+
+function wasmPreloadPlugin(): Plugin {
+  return {
+    name: 'wasm-preload',
+    transformIndexHtml(html) {
+      return html.replace(
+        '</head>',
+        `    <link rel="preload" href="./wasm/x2t/x2t.wasm" as="fetch" crossorigin>\n  </head>`
+      )
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd())
@@ -18,7 +31,7 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
       },
       build: {
-        outDir: 'html',
+        outDir: 'weboffice',
       },
       plugins: [
         AutoImport({
@@ -37,6 +50,7 @@ export default defineConfig(({ mode }) => {
           ext: 'gz', // 后缀名
           deleteOriginFile: false, // 压缩后是否删除压缩源文件
         }),
+        wasmPreloadPlugin(),
       ],
       resolve: {
         alias: {
