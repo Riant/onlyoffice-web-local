@@ -20,6 +20,7 @@
 
 <script lang="ts" setup>
 import { onMounted, onBeforeUnmount, ref, watchEffect, watch, reactive } from 'vue'
+import { useRoute } from 'vue-router'
 import { getDocumentType, DocmentType } from '@/utils/util'
 import { g_sEmpty_bin } from '@/utils/empty_bin'
 import LoadingProgress from './LoadingProgress.vue'
@@ -95,7 +96,7 @@ onMounted(async () => {
         await loadEditorApi()
         await initX2T()
         console.log('app has loading')
-        loadingVisible.value = false
+        loading.value = false
         // 页面初始化后，使用 watchEffect 监听 props.file 并执行 openFile
         // 添加props.file监听
 

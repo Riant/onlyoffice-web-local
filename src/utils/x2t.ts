@@ -175,26 +175,67 @@ class X2TConverter {
 
             this.emitProgress(LoadStage.INITIALIZING, 25, '正在初始化运行环境...', '加载 WebAssembly 模块')
 
-            // 由于 x2t.js 设置了 noInitialRun = true，onRuntimeInitialized 不会被调用
-            // 但 WASM 模块在脚本加载后就已经初始化好了，直接检查模块是否可用
             const x2t = window.Module
             if (!x2t) {
                 this.emitProgress(LoadStage.ERROR, 0, '初始化失败', 'X2T 模块未找到')
                 throw new Error('X2T module not found after script loading')
             }
 
-            // 检查必要的函数是否存在
-            if (typeof x2t.ccall !== 'function' || !x2t.FS) {
-                this.emitProgress(LoadStage.ERROR, 0, '初始化失败', 'X2T 模块未完全加载')
-                throw new Error('X2T module not fully initialized')
-            }
+            // 等待 WASM 模块完全加载
+            // x2t.js 设置了 noInitialRun = true，需要等待 WASM 加载完成
+            return new Promise((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    reject(new Error('X2T WASM initialization timeout'))
+                }, this.INIT_TIMEOUT)
 
-            this.createWorkingDirectories(x2t)
-            this.x2tModule = x2t
-            this.isReady = true
-            console.log('X2T module initialized successfully')
-            this.emitProgress(LoadStage.INITIALIZING, 30, '转换引擎初始化完成', '准备处理文档')
-            return x2t
+                // 检查是否已经初始化完成
+                const checkReady = () => {
+                    // 检查 WASM 是否已加载（calledRun 为 true 表示运行时已初始化）
+                    if (x2t.calledRun && typeof x2t.ccall === 'function' && x2t.FS) {
+                        clearTimeout(timeoutId)
+                        this.createWorkingDirectories(x2t)
+                        this.x2tModule = x2t
+                        this.isReady = true
+                        console.log('X2T module initialized successfully')
+                        this.emitProgress(LoadStage.INITIALIZING, 30, '转换引擎初始化完成', '准备处理文档')
+                        resolve(x2t)
+                        return true
+                    }
+                    return false
+                }
+
+                // 立即检查一次
+                if (checkReady()) return
+
+                // 设置回调等待初始化完成
+                const originalOnRuntimeInitialized = x2t.onRuntimeInitialized
+                x2t.onRuntimeInitialized = () => {
+                    if (originalOnRuntimeInitialized) {
+                        originalOnRuntimeInitialized()
+                    }
+                    checkReady()
+                }
+
+                // 如果 runDependencies 为 0 且还没有初始化，手动调用 run()
+                if (!x2t.calledRun && typeof x2t.run === 'function') {
+                    console.log('Manually calling run() to start WASM runtime')
+                    try {
+                        x2t.run()
+                    } catch (e) {
+                        console.warn('Error calling run():', e)
+                    }
+                    // 再次检查
+                    setTimeout(() => {
+                        if (checkReady()) return
+                        // 如果还是没准备好，轮询检查
+                        const pollInterval = setInterval(() => {
+                            if (checkReady()) {
+                                clearInterval(pollInterval)
+                            }
+                        }, 100)
+                    }, 100)
+                }
+            })
         } catch (error) {
             this.initPromise = null // 重置以允许重试
             throw error
