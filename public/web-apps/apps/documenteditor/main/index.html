@@ -265,7 +265,16 @@
                     console.log('  - 名称 (Aa):', customFontInfo.Aa);
                     console.log('  - 文件索引 (D_):', customFontInfo.D_);
                     console.log('  - 缩略图索引 (iMf):', customFontInfo.iMf);
-                    console.log('  - qQa:', customFontInfo.qQa);
+                    console.log('  - qQa (修改前):', customFontInfo.qQa);
+                    
+                    // 手动设置 qQa = 15，启用所有样式
+                    customFontInfo.qQa = 15;
+                    customFontInfo.ZCd = true;
+                    customFontInfo.v8a = true;
+                    customFontInfo.u8a = true;
+                    customFontInfo.YCd = true;
+                    
+                    console.log('  - qQa (修改后):', customFontInfo.qQa);
                     console.log('  - ZCd:', customFontInfo.ZCd);
                     console.log('  - v8a:', customFontInfo.v8a);
                     console.log('  - u8a:', customFontInfo.u8a);
