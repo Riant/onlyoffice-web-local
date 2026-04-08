@@ -65,7 +65,7 @@
 
 ### 步骤 1：修改 sdk-all.js（添加扩展点）
 
-**文件**：`public/sdkjs/word/sdk-all.js`
+**文件**：`public/sdkjs/word/sdk-all.js`，或者经过浏览器源代码工具格式化后的版本：`public/sdkjs/word/sdk-all.format.js`
 
 **修改内容**：
 
@@ -89,19 +89,15 @@
 
 **功能**：
 
-* 读取 TTF 字体文件
-
-* 提取所有元信息字段
-
-* 生成 JavaScript 对象格式输出
-
-* 支持复制到剪贴板
+- 读取 TTF 字体文件
+- 提取所有元信息字段
+- 生成 JavaScript 对象格式输出
+- 支持复制到剪贴板
 
 **技术方案**：
 
-* 使用 `opentype.js` 库解析 TTF 文件
-
-* 或使用 ArrayBuffer 直接解析 TTF 表结构
+- 使用 `opentype.js` 库解析 TTF 文件
+- 或使用 ArrayBuffer 直接解析 TTF 表结构
 
 ### 步骤 3：修改 index.html（动态配置）
 
@@ -117,10 +113,10 @@
   var customFontName = '方正小标宋简体';
   var customFontFileIndex = window.__fonts_files.length;
   var customFontInfoIndex = window.__fonts_infos.length;
-  
+
   // 1. 扩展 __fonts_files
   window.__fonts_files.push(customFontPath);
-  
+
   // 2. 扩展 __fonts_infos
   window.__fonts_infos.push([
     customFontName,           // 名称
@@ -128,19 +124,19 @@
     customFontFileIndex,      // 文件索引
     -1, -1, -1, -1, -1, -1    // 其他样式索引
   ]);
-  
+
   // 3. 扩展 __fonts_ranges（中文字符范围）
   var ranges = window.__fonts_ranges;
   // 在数组开头插入，确保优先级
   ranges.unshift(19968, 40869, customFontInfoIndex);
-  
+
   // 4. 扩展 __fonts_sort
   window.__fonts_sort.push(customFontName);
-  
+
   // 5. 扩展 p 对象（路径映射）
   window.__FONTS_PATH_EXTENTION__ = {};
   window.__FONTS_PATH_EXTENTION__[customFontPath] = '341';
-  
+
   // 6. 扩展 q 对象（字体元信息）- 需要从工具获取
   window.__FONTS_META_EXTENTION__ = {};
   window.__FONTS_META_EXTENTION__[customFontPath] = {
@@ -213,7 +209,7 @@ import opentype from 'opentype.js';
 async function extractFontMeta(file) {
   const buffer = await file.arrayBuffer();
   const font = opentype.parse(buffer);
-  
+
   return {
     units_per_EM: font.unitsPerEm,
     ascender: font.ascender,
@@ -227,23 +223,17 @@ async function extractFontMeta(file) {
 
 TTF 文件结构：
 
-* 文件头（12 字节）
-
-* 表目录（每个表 16 字节）
-
-* 各表数据
+- 文件头（12 字节）
+- 表目录（每个表 16 字节）
+- 各表数据
 
 需要解析的表：
 
-* `head`: header\_yMin, header\_yMax
-
-* `hhea`: ascender, descender, height
-
-* `OS/2`: os2\_\* 系列
-
-* `name`: family\_name, style\_name
-
-* `maxp`: num\_glyphs
+- `head`: header\_yMin, header\_yMax
+- `hhea`: ascender, descender, height
+- `OS/2`: os2\_\* 系列
+- `name`: family\_name, style\_name
+- `maxp`: num\_glyphs
 
 ### 输出格式
 
@@ -296,13 +286,14 @@ window.__FONTS_META_EXTENTION__ = {
 5. **加密字体文件** → 生成 `public/fonts/341`
 6. **测试验证** → 确认字体加载和渲染正常
 
-***---
+\*\*\*---
 
 ## 五、技术选型
 
 ### 字体元信息提取
 
 **使用 opentype.js 库**：
+
 - CDN：`https://opentype.js.org/dist/opentype.js`
 - 浏览器端直接引用，无需安装
 - API 简单，可直接解析 TTF 文件
@@ -310,22 +301,24 @@ window.__FONTS_META_EXTENTION__ = {
 ### 实现策略
 
 **先跑通单字体流程**：
+
 1. 以"方正小标宋简体"为示例
 2. 完成完整的自定义字体添加流程
 3. 验证字体加载和渲染正常
 
 **后续工具化**：
+
 1. 封装字体元信息提取工具
 2. 支持批量添加多个自定义字体
 3. 提供可视化配置界面
 
----
+***
 
 ## 六、执行计划
 
 ### 阶段一：跑通单字体流程
 
-1. ~~**创建字体元信息提取工具**（使用 opentype.js）~~
+1. **~~创建字体元信息提取工具~~**~~（使用 opentype.js）~~
 2. **提取"方正小标宋简体"的元信息**
 3. ✅ **修改 sdk-all.js**（添加扩展点）- 已完成
 4. **修改 index.html**（添加动态配置）
