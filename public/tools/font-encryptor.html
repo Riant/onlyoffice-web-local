@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>字体文件加密工具</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+    h1 { color: #333; margin-bottom: 20px; }
+    .section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
+    .section h3 { margin-top: 0; color: #555; }
+    .file-input { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
+    .file-input input[type="file"] { flex: 1; min-width: 200px; }
+    .file-input input[type="text"] { width: 150px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .file-input label { min-width: 100px; }
+    .buttons { display: flex; gap: 10px; margin-top: 10px; }
+    button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #409eff; color: #fff; }
+    .btn-primary:hover { background: #66b1ff; }
+    .btn-secondary { background: #67c23a; color: #fff; }
+    .btn-secondary:hover { background: #85ce61; }
+    .info { color: #666; font-size: 13px; margin-top: 10px; }
+    .status { margin-top: 10px; padding: 10px; border-radius: 4px; }
+    .status.success { background: #f0f9eb; color: #67c23a; }
+    .status.error { background: #fef0f0; color: #f56c6c; }
+    .status.info { background: #ecf5ff; color: #409eff; }
+    .preview { margin-top: 10px; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 12px; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>字体文件加密工具</h1>
+  
+  <div class="section">
+    <h3>1. 选择字体文件</h3>
+    <div class="file-input">
+      <input type="file" id="fontFile" accept=".ttf,.otf,.woff">
+      <label>输出文件名：</label>
+      <input type="text" id="outputName" value="341" placeholder="如: 341">
+    </div>
+    <p class="info">支持 TTF、OTF、WOFF 格式。加密后的文件可直接放入 public/fonts/ 目录。</p>
+  </div>
+  
+  <div class="section">
+    <h3>2. 加密预览</h3>
+    <div id="preview" class="preview" style="display: none;">
+      <div>原始文件前 16 字节: <span id="originalBytes"></span></div>
+      <div>加密后前 16 字节: <span id="encryptedBytes"></span></div>
+      <div>文件大小: <span id="fileSize"></span> 字节</div>
+    </div>
+    <div class="buttons">
+      <button class="btn-primary" id="encryptBtn" disabled onclick="downloadEncrypted()">下载加密文件</button>
+    </div>
+    <div id="status"></div>
+  </div>
+  
+  <div class="section">
+    <h3>3. 使用说明</h3>
+    <ol>
+      <li>选择未加密的字体文件（TTF/OTF/WOFF）</li>
+      <li>设置输出文件名（如 341，无扩展名）</li>
+      <li>点击"下载加密文件"保存加密后的字体</li>
+      <li>将下载的文件放入 public/fonts/ 目录</li>
+    </ol>
+  </div>
+
+  <script>
+    // XOR 密钥（来源：sdk-all.js）
+    const XOR_KEY = [160, 102, 214, 32, 20, 150, 71, 250, 149, 105, 184, 80, 176, 65, 73, 72];
+    
+    let originalBuffer = null;
+    let encryptedBuffer = null;
+    
+    document.getElementById('fontFile').addEventListener('change', async function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const statusEl = document.getElementById('status');
+      statusEl.className = 'status info';
+      statusEl.textContent = '正在读取文件...';
+      
+      try {
+        originalBuffer = await file.arrayBuffer();
+        encryptedBuffer = new Uint8Array(originalBuffer.slice(0));
+        
+        // 加密前 32 字节
+        for (let i = 0; i < 32; i++) {
+          encryptedBuffer[i] ^= XOR_KEY[i % 16];
+        }
+        
+        // 显示预览
+        const preview = document.getElementById('preview');
+        preview.style.display = 'block';
+        
+        const originalBytes = document.getElementById('originalBytes');
+        const encryptedBytes = document.getElementById('encryptedBytes');
+        const fileSize = document.getElementById('fileSize');
+        
+        originalBytes.textContent = formatBytes(new Uint8Array(originalBuffer).slice(0, 16));
+        encryptedBytes.textContent = formatBytes(encryptedBuffer.slice(0, 16));
+        fileSize.textContent = originalBuffer.byteLength.toLocaleString();
+        
+        document.getElementById('encryptBtn').disabled = false;
+        
+        statusEl.className = 'status success';
+        statusEl.textContent = '✓ 文件已加密，点击按钮下载';
+      } catch (error) {
+        statusEl.className = 'status error';
+        statusEl.textContent = '✗ 加密失败: ' + error.message;
+        console.error(error);
+      }
+    });
+    
+    function formatBytes(bytes) {
+      return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+    }
+    
+    function downloadEncrypted() {
+      if (!encryptedBuffer) {
+        alert('请先选择字体文件');
+        return;
+      }
+      
+      const outputName = document.getElementById('outputName').value || '341';
+      const blob = new Blob([encryptedBuffer], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = outputName;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      const statusEl = document.getElementById('status');
+      statusEl.className = 'status success';
+      statusEl.textContent = '✓ 文件已下载：' + outputName;
+    }
+  </script>
+</body>
+</html>

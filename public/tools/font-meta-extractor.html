@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>字体元信息提取工具</title>
+  <script src="https://opentype.js.org/dist/opentype.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; }
+    h1 { color: #333; margin-bottom: 20px; }
+    .section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
+    .section h3 { margin-top: 0; color: #555; }
+    .file-input { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; }
+    .file-input input[type="file"] { flex: 1; }
+    .file-input input[type="text"] { width: 200px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .output-area { width: 100%; min-height: 300px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: 'Consolas', 'Monaco', monospace; font-size: 12px; resize: vertical; background: #fff; }
+    .buttons { display: flex; gap: 10px; margin-top: 10px; }
+    button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #409eff; color: #fff; }
+    .btn-primary:hover { background: #66b1ff; }
+    .btn-secondary { background: #67c23a; color: #fff; }
+    .btn-secondary:hover { background: #85ce61; }
+    .info { color: #666; font-size: 13px; margin-top: 10px; }
+    .status { margin-top: 10px; padding: 10px; border-radius: 4px; }
+    .status.success { background: #f0f9eb; color: #67c23a; }
+    .status.error { background: #fef0f0; color: #f56c6c; }
+  </style>
+</head>
+<body>
+  <h1>字体元信息提取工具</h1>
+  
+  <div class="section">
+    <h3>1. 选择字体文件</h3>
+    <div class="file-input">
+      <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2">
+      <label>字体路径键名：</label>
+      <input type="text" id="fontPath" value="fonts/341" placeholder="如: fonts/341">
+    </div>
+    <p class="info">支持 TTF、OTF、WOFF、WOFF2 格式</p>
+  </div>
+  
+  <div class="section">
+    <h3>2. 提取结果</h3>
+    <textarea class="output-area" id="output" readonly placeholder="提取的元信息将显示在这里..."></textarea>
+    <div class="buttons">
+      <button class="btn-primary" onclick="copyToClipboard()">复制到剪贴板</button>
+      <button class="btn-secondary" onclick="downloadJson()">下载 JSON</button>
+    </div>
+    <div id="status"></div>
+  </div>
+  
+  <div class="section">
+    <h3>3. 使用说明</h3>
+    <ol>
+      <li>选择字体文件（TTF/OTF/WOFF/WOFF2）</li>
+      <li>设置字体路径键名（如 fonts/341）</li>
+      <li>点击"复制到剪贴板"获取 JavaScript 代码</li>
+      <li>将代码粘贴到 index.html 的 __FONTS_META_EXTENTION__ 定义中</li>
+    </ol>
+  </div>
+
+  <script>
+    let extractedMeta = null;
+    
+    document.getElementById('fontFile').addEventListener('change', async function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const statusEl = document.getElementById('status');
+      statusEl.className = 'status';
+      statusEl.textContent = '正在解析字体文件...';
+      
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const font = opentype.parse(arrayBuffer);
+        
+        // 提取元信息
+        const fontPath = document.getElementById('fontPath').value || 'fonts/341';
+        extractedMeta = extractMeta(font, fontPath);
+        
+        // 显示结果
+        const output = document.getElementById('output');
+        output.value = formatOutput(extractedMeta, fontPath);
+        
+        statusEl.className = 'status success';
+        statusEl.textContent = '✓ 元信息提取成功！';
+      } catch (error) {
+        statusEl.className = 'status error';
+        statusEl.textContent = '✗ 解析失败: ' + error.message;
+        console.error(error);
+      }
+    });
+    
+    function extractMeta(font, fontPath) {
+      const tables = font.tables || {};
+      const head = tables.head || {};
+      const hhea = tables.hhea || {};
+      const os2 = tables['OS/2'] || {};
+      const maxp = tables.maxp || {};
+      const name = tables.name || {};
+      const cmap = tables.cmap || {};
+      
+      // 获取字体名称
+      const familyName = font.names.fontFamily || name.fontFamily || font.familyName || 'Unknown';
+      const styleName = font.names.fontSubfamily || name.fontSubfamily || font.styleName || 'Regular';
+      
+      // 计算 face_flags
+      const faceFlags = calculateFaceFlags(font);
+      
+      // 计算 num_charmaps
+      const numCharmaps = cmap.encodingRecords ? cmap.encodingRecords.length : (font.numGlyphs > 0 ? 2 : 0);
+      
+      // 计算 style_flags
+      const styleFlags = calculateStyleFlags(font);
+      
+      return {
+        units_per_EM: font.unitsPerEm || head.unitsPerEm || 1024,
+        ascender: font.ascender || hhea.ascender || 0,
+        descender: font.descender || hhea.descender || 0,
+        height: (hhea.ascender || font.ascender || 0) - (hhea.descender || font.descender || 0),
+        face_flags: faceFlags,
+        num_faces: 1,
+        num_glyphs: font.numGlyphs || maxp.numGlyphs || 0,
+        num_charmaps: numCharmaps,
+        style_flags: styleFlags,
+        face_index: 0,
+        family_name: typeof familyName === 'object' ? (familyName.en || familyName['zh-CN'] || Object.values(familyName)[0] || 'Unknown') : familyName,
+        style_name: typeof styleName === 'object' ? (styleName.en || styleName['zh-CN'] || Object.values(styleName)[0] || 'Regular') : styleName,
+        os2_version: os2.version || 0,
+        os2_usWeightClass: os2.usWeightClass || 400,
+        os2_fsSelection: os2.fsSelection || 64,
+        os2_usWinAscent: os2.usWinAscent || 0,
+        os2_usWinDescent: os2.usWinDescent || 0,
+        os2_usDefaultChar: os2.usDefaultChar || 0,
+        os2_sTypoAscender: os2.sTypoAscender || 0,
+        os2_sTypoDescender: os2.sTypoDescender || 0,
+        os2_sTypoLineGap: os2.sTypoLineGap || 0,
+        os2_ulUnicodeRange1: os2.ulUnicodeRange1 || 0,
+        os2_ulUnicodeRange2: os2.ulUnicodeRange2 || 0,
+        os2_ulUnicodeRange3: os2.ulUnicodeRange3 || 0,
+        os2_ulUnicodeRange4: os2.ulUnicodeRange4 || 0,
+        os2_ulCodePageRange1: os2.ulCodePageRange1 || 0,
+        os2_ulCodePageRange2: os2.ulCodePageRange2 || 0,
+        os2_nSymbolic: os2.panose ? -1 : 0,
+        header_yMin: head.yMin || 0,
+        header_yMax: head.yMax || 0,
+        monochromeSizes: []
+      };
+    }
+    
+    function calculateFaceFlags(font) {
+      let flags = 0;
+      // 基础标志
+      flags |= 0x0001; // FACE_FLAG_SCALABLE
+      flags |= 0x0002; // FACE_FLAG_HORIZONTAL
+      
+      // 检查是否有 kerning
+      if (font.tables && font.tables.kern) {
+        flags |= 0x0040; // FACE_FLAG_KERNING
+      }
+      
+      // 检查是否有 glyph names
+      if (font.glyphs && font.glyphs.length > 0) {
+        flags |= 0x0200; // FACE_FLAG_GLYPH_NAMES
+      }
+      
+      // 检查编码
+      flags |= 0x0800; // FACE_FLAG_HINTER
+      
+      return flags;
+    }
+    
+    function calculateStyleFlags(font) {
+      let flags = 0;
+      const styleName = (font.styleName || '').toLowerCase();
+      
+      if (styleName.includes('bold')) {
+        flags |= 0x0001; // FT_STYLE_FLAG_BOLD
+      }
+      if (styleName.includes('italic') || styleName.includes('oblique')) {
+        flags |= 0x0002; // FT_STYLE_FLAG_ITALIC
+      }
+      
+      return flags;
+    }
+    
+    function formatOutput(meta, fontPath) {
+      const lines = [];
+      lines.push('window.__FONTS_META_EXTENTION__ = {');
+      lines.push(`  "${fontPath}": {`);
+      
+      const entries = Object.entries(meta);
+      entries.forEach(([key, value], index) => {
+        const comma = index < entries.length - 1 ? ',' : '';
+        if (typeof value === 'string') {
+          lines.push(`    ${key}: "${value}"${comma}`);
+        } else if (Array.isArray(value)) {
+          lines.push(`    ${key}: [${value.join(', ')}]${comma}`);
+        } else {
+          lines.push(`    ${key}: ${value}${comma}`);
+        }
+      });
+      
+      lines.push('  }');
+      lines.push('};');
+      
+      return lines.join('\n');
+    }
+    
+    function copyToClipboard() {
+      const output = document.getElementById('output');
+      if (!output.value) {
+        alert('没有可复制的内容');
+        return;
+      }
+      
+      navigator.clipboard.writeText(output.value).then(() => {
+        const statusEl = document.getElementById('status');
+        statusEl.className = 'status success';
+        statusEl.textContent = '✓ 已复制到剪贴板！';
+      }).catch(err => {
+        alert('复制失败: ' + err);
+      });
+    }
+    
+    function downloadJson() {
+      const output = document.getElementById('output');
+      if (!output.value) {
+        alert('没有可下载的内容');
+        return;
+      }
+      
+      const blob = new Blob([output.value], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'font-meta.js';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
