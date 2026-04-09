@@ -283,7 +283,7 @@
                     zFc: 38,                    // LineGap
                     AFc: 0,                     // XHeight
                     U5b: 0,                     // CapHeight
-                    exa: null,                  // 备用名称数组
+                    exa: ['方正小标宋简体'],     // 备用名称数组 - 中文名称
                     // 添加 Ogf 方法 - 用于字体匹配计算
                     Ogf: function(t, x) {
                         var fontName = t.I8 || '';
@@ -327,7 +327,8 @@
 
                 // 关键！添加中文名称到英文名称的映射
                 AscFonts.FQ.Ddb['FZXiaoBiaoSong-B05S'] = '方正小标宋简体';
-                console.log('[自定义字体] 已添加 Ddb 映射: FZXiaoBiaoSong-B05S -> 方正小标宋简体');
+                AscFonts.FQ.Ddb['方正小标宋简体'] = 'FZXiaoBiaoSong-B05S';  // 双向映射
+                console.log('[自定义字体] 已添加 Ddb 映射');
 
                 // 同时在 eTc 缓存中添加中文名称的映射
                 var fontInfo = AscFonts.FQ.efc('FZXiaoBiaoSong-B05S');
