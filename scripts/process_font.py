@@ -7,9 +7,9 @@
 from fontTools.ttLib import TTFont
 import os
 
-input_font = r'D:\projects\riant\方正小标宋简体.ttf'
-output_font_raw = r'D:\projects\riant\341_new'
-output_font_encrypted = r'D:\projects\riant\onlyoffice-web-local\public\fonts\341'
+input_font = r'D:\projects\riant\cormorant.ttf'
+output_font_raw = r'D:\projects\riant\cormorant_new'
+output_font_encrypted = r'D:\projects\riant\onlyoffice-web-local\public\fonts\342'
 
 # XOR 加密密钥
 XOR_KEY = bytes([160, 102, 214, 32, 20, 150, 71, 250, 149, 105, 184, 80, 176, 65, 73, 72])

@@ -23,12 +23,12 @@
 </head>
 <body>
     <h1>字体预览图生成工具</h1>
-    
+
     <div class="section">
         <h2>1. 配置</h2>
         <div class="config">
             <label>原始 .bin 文件路径:</label>
-            <input type="text" id="originalBinPath" value="../sdkjs/common/Images/fonts_thumbnail_ea@1.5x.png.bin.bak">
+            <input type="text" id="originalBinPath" value="../sdkjs/common/Images/fonts_thumbnail_ea@1.5x.png.bin2.bak">
         </div>
         <div class="config">
             <label>自定义字体文件:</label>
@@ -43,32 +43,32 @@
             <input type="text" id="previewText" value="方正小标宋简体">
         </div>
     </div>
-    
+
     <div class="section">
         <h2>2. 生成预览</h2>
         <button class="btn btn-primary" onclick="generatePreview()">生成预览</button>
         <div class="preview" id="preview"></div>
     </div>
-    
+
     <div class="section">
         <h2>3. 生成 .bin 文件</h2>
         <button class="btn btn-success" onclick="generateBinFile()">生成并下载 .bin 文件</button>
         <div class="log" id="log"></div>
     </div>
-    
+
     <script>
         const THUMBNAIL_WIDTH = 450
         const THUMBNAIL_HEIGHT = 42
-        
+
         let originalBinData = null
         let customFontThumbnails = []
-        
+
         function log(msg) {
             const logEl = document.getElementById('log')
             logEl.innerHTML += msg + '<br>'
             console.log(msg)
         }
-        
+
         // 读取原始 .bin 文件
         async function loadOriginalBin() {
             const path = document.getElementById('originalBinPath').value
@@ -76,26 +76,26 @@
                 const response = await fetch(path)
                 const buffer = await response.arrayBuffer()
                 originalBinData = new Uint8Array(buffer)
-                
+
                 // 解析文件头
                 const view = new DataView(buffer)
                 const width = view.getUint32(0, false)
                 const height = view.getUint32(4, false)
                 const count = view.getUint32(8, false)
-                
-                log(`原始文件信息:`)
+
+                log(`原始文件信息:` + path)
                 log(`  宽度: ${width}`)
                 log(`  高度: ${height}`)
                 log(`  字体数量: ${count}`)
                 log(`  数据大小: ${buffer.byteLength} bytes`)
-                
+
                 return { width, height, count, data: originalBinData }
             } catch (error) {
                 log(`加载原始文件失败: ${error.message}`)
                 return null
             }
         }
-        
+
         // 使用 Canvas 生成字体预览
         async function generateFontThumbnail(fontFile, fontName, previewText) {
             return new Promise((resolve, reject) => {
@@ -103,29 +103,29 @@
                 canvas.width = THUMBNAIL_WIDTH
                 canvas.height = THUMBNAIL_HEIGHT
                 const ctx = canvas.getContext('2d')
-                
+
                 // 读取字体文件
                 const reader = new FileReader()
                 reader.onload = function(e) {
                     const fontData = e.target.result
                     const fontFace = new FontFace('TempFont_' + Date.now(), fontData)
-                    
+
                     fontFace.load().then(function() {
                         document.fonts.add(fontFace)
-                        
+
                         // 渲染预览
                         ctx.fillStyle = '#ffffff'
                         ctx.fillRect(0, 0, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT)
                         ctx.font = `28px "${fontFace.family}"`
                         ctx.fillStyle = '#000000'
                         ctx.fillText(previewText, 28, 30)
-                        
+
                         // 获取图像数据
                         const imageData = ctx.getImageData(0, 0, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT)
-                        
+
                         // 清理
                         document.fonts.delete(fontFace)
-                        
+
                         resolve({
                             canvas: canvas,
                             imageData: imageData,
@@ -136,18 +136,18 @@
                 reader.readAsArrayBuffer(fontFile)
             })
         }
-        
+
         // 将 RGBA 数据转换为 RLE 压缩格式
         function rgbaToRLE(rgbaData) {
             const rleData = []
             let i = 0
-            
+
             while (i < rgbaData.length) {
                 const r = rgbaData[i]
                 const g = rgbaData[i + 1]
                 const b = rgbaData[i + 2]
                 const a = rgbaData[i + 3]
-                
+
                 // 判断是否为白色或接近白色（背景）
                 if (a < 10 || (r > 250 && g > 250 && b > 250)) {
                     // 透明/白色像素，使用 RLE 压缩
@@ -174,24 +174,24 @@
                     i += 4
                 }
             }
-            
+
             return new Uint8Array(rleData)
         }
-        
+
         // 生成预览
         async function generatePreview() {
             const fontFile = document.getElementById('fontFile').files[0]
             const fontName = document.getElementById('fontName').value
             const previewText = document.getElementById('previewText').value
-            
+
             if (!fontFile) {
                 alert('请选择字体文件')
                 return
             }
-            
+
             try {
                 const result = await generateFontThumbnail(fontFile, fontName, previewText)
-                
+
                 // 显示预览
                 const previewEl = document.getElementById('preview')
                 const item = document.createElement('div')
@@ -201,16 +201,16 @@
                 label.textContent = fontName
                 item.appendChild(label)
                 previewEl.appendChild(item)
-                
+
                 // 存储
                 customFontThumbnails.push(result)
-                
+
                 log(`预览生成成功: ${fontName}`)
             } catch (error) {
                 log(`预览生成失败: ${error.message}`)
             }
         }
-        
+
         // 生成 .bin 文件
         async function generateBinFile() {
             // 加载原始文件
@@ -218,28 +218,28 @@
                 log('正在加载原始 .bin 文件...')
                 await loadOriginalBin()
             }
-            
+
             if (!originalBinData) {
                 log('无法加载原始 .bin 文件')
                 return
             }
-            
+
             if (customFontThumbnails.length === 0) {
                 log('请先生成预览')
                 return
             }
-            
+
             log('正在生成新的 .bin 文件...')
-            
+
             // 解析原始文件
             const view = new DataView(originalBinData.buffer)
             const width = view.getUint32(0, false)
             const height = view.getUint32(4, false)
             const count = view.getUint32(8, false)
             const originalRLE = originalBinData.slice(12)
-            
+
             log(`原始字体数量: ${count}`)
-            
+
             // 为每个自定义字体生成 RLE 数据
             const newRLEData = []
             for (const thumbnail of customFontThumbnails) {
@@ -247,31 +247,31 @@
                 log(`字体 "${thumbnail.fontName}" RLE 数据大小: ${rle.length} bytes`)
                 newRLEData.push(rle)
             }
-            
+
             // 合并数据
             const totalNewRLE = newRLEData.reduce((acc, rle) => acc + rle.length, 0)
             const newData = new Uint8Array(12 + originalRLE.length + totalNewRLE)
-            
+
             // 写入文件头
             const newView = new DataView(newData.buffer)
             newView.setUint32(0, width, false)
             newView.setUint32(4, height, false)
             newView.setUint32(8, count + customFontThumbnails.length, false)
-            
+
             // 写入原始 RLE 数据
             newData.set(originalRLE, 12)
-            
+
             // 写入新的 RLE 数据
             let offset = 12 + originalRLE.length
             for (const rle of newRLEData) {
                 newData.set(rle, offset)
                 offset += rle.length
             }
-            
+
             log(`新文件信息:`)
             log(`  字体数量: ${count + customFontThumbnails.length}`)
             log(`  文件大小: ${newData.length} bytes`)
-            
+
             // 下载文件
             const blob = new Blob([newData], { type: 'application/octet-stream' })
             const url = URL.createObjectURL(blob)
@@ -280,10 +280,10 @@
             a.download = 'fonts_thumbnail_ea@1.5x.png.bin'
             a.click()
             URL.revokeObjectURL(url)
-            
+
             log('文件已下载!')
         }
-        
+
         // 页面加载时自动加载原始文件
         window.onload = function() {
             loadOriginalBin()
